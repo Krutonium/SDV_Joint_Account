@@ -1,0 +1,10 @@
+﻿{
+  "Name": "Joint Account",
+  "Author": "Krutonium",
+  "Version": "1.0.0",
+  "Description": "Merges you and your spouses bank accounts after marriage.",
+  "UniqueID": "krutonium.jointaccount",
+  "EntryDll": "Joint_Account.dll",
+  "MinimumApiVersion": "3.0.0",
+  "UpdateKeys": []
+}
