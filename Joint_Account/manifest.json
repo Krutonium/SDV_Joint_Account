@@ -6,5 +6,5 @@
   "UniqueID": "krutonium.jointaccount",
   "EntryDll": "Joint_Account.dll",
   "MinimumApiVersion": "3.0.0",
-  "UpdateKeys": []
+  "UpdateKeys": ["Nexus:7452"]
 }

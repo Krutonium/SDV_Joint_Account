@@ -1,12 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Net.NetworkInformation;
+using System.IO.MemoryMappedFiles;
+using System.Linq;
+using System.Security.Policy;
 using Microsoft.Xna.Framework;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
 using StardewValley.Menus;
+using MailFrameworkMod;
+using StardewValley.Objects;
+using StardewValley.Tools;
+using Object = System.Object;
 
 namespace Joint_Account
 {
@@ -17,30 +23,83 @@ namespace Joint_Account
         {
             helper.Events.GameLoop.DayStarted += GameLoopOnDayStarted;
             helper.Events.GameLoop.OneSecondUpdateTicked += GameLoopOnOneSecondUpdateTicked;
-            this.config = this.Helper.ReadConfig<ModConfig>();
-            
+            config = Helper.ReadConfig<ModConfig>();
+
         }
+
+        
 
         private Random rand = new Random();
         private void GameLoopOnOneSecondUpdateTicked(object sender, OneSecondUpdateTickedEventArgs e)
         {
+            //var WhatIsthis = Game1.objectInformation[20];
+            //Monitor.Log(WhatIsthis, LogLevel.Info);
             //Every Second, Draw a random number and if it hits, the spouse has spent a bit of money.
+           // var tempItem = getRandomItem();
+            //Monitor.Log(tempItem.DisplayName + tempItem.salePrice(), LogLevel.Info);
             if (!Context.IsWorldReady)
             {
                 return;
             }
 
+            if (!Game1.player.isMarried())
+            {
+                return;
+            }
+            
+            
             
             int hit = 250; //When the spouse makes a purchase
             if (rand.Next(0, 500) == hit)
             {
+                int randomInteger = rand.Next();
                 var Spouse = GetSpouse();
-                int AmountSpent = rand.Next(Spouse.minSpend, Spouse.maxSpend);
-                string item = Spouse.thingsBought[rand.Next(0, Spouse.thingsBought.Count)];
-                ShowNotification(Spouse.Name + " has spent " + AmountSpent + " on " + item , 1);
+                var item = getRandomItem();
+                ShowNotification(Spouse.Name + " has spent " + item.salePrice() + " on " + item.DisplayName , 1);
+                string letterId = "SpousePurchase" + item.DisplayName + randomInteger;
+                MailDao.SaveLetter(
+                    new Letter(
+                        letterId,
+                        "Your Joja Prime Package has Arrived!",
+                        new List<Item>{item},
+                        (l => Game1.player.mailReceived.Contains(l.Id))
+                    ));
             }
         }
 
+
+        private Item getRandomItem()
+        {
+            while (true)
+            {
+                var item = selectRandomItem();
+                if (item != null)
+                {
+                    return item;
+                }
+            }
+        }
+
+        private Item selectRandomItem()
+        {
+            int index = rand.Next(2, 790);
+           
+            if (!Game1.objectInformation.ContainsKey(index) &&
+                StardewValley.Utility.isObjectOffLimitsForSale(index))
+            {
+                return null;
+            }
+
+            StardewValley.Object item = new StardewValley.Object(index, 0);
+            if (Utility.getSellToStorePriceOfItem(item) < Game1.player._money / 10)
+            {
+                return item;
+            }
+            else
+            {
+                return null;
+            }
+        }
         private void GameLoopOnDayStarted(object sender, DayStartedEventArgs e)
         {
             //Player can regularly gets money from Spouses Job - If they are married.
@@ -53,7 +112,6 @@ namespace Joint_Account
 
             if (!Game1.player.isMarried())
             {
-                
                 Monitor.Log("Player is not Married yet.", LogLevel.Info);
                 return;
             }
@@ -69,14 +127,15 @@ namespace Joint_Account
 
             config.PendingMoney += Spouse.Income;
 
-            int DOM = (int)Game1.player.dayOfMonthForSaveGame;
+            int DOM = Game1.dayOfMonth;
             if (DOM == 6 | DOM == 14 | DOM == 21 | DOM == 28) //Fridays
             {
-                Game1.player._money += config.PendingMoney;
+                //Game1.player._money += config.PendingMoney;
+                //Send Letter with Money instead
                 ShowNotification( Spouse.Name + "'s PayCheque has arrived!", 1);
                 config.PendingMoney = 0;
             }
-            this.Helper.WriteConfig(config);
+            Helper.WriteConfig(config);
         }
 
         public void ShowNotification(string msg, int WhatType)
@@ -84,7 +143,7 @@ namespace Joint_Account
             var message = new HUDMessage(message: msg, whatType: WhatType);
             Game1.addHUDMessage(message);
         }
-        
+
         private SpouseStats GetSpouse()
         {
             SpouseStats stats = new SpouseStats();
